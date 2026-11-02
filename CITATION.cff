@@ -2,6 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite the accompanying article."
 title: "soilloop: a dynamical model of the contaminated soil - health - community loop"
 version: 0.1.0
+doi: 10.5281/zenodo.23890631
+repository-code: "https://github.com/gfcapra/soilloop"
 authors:
   - family-names: Capra
     given-names: Gian Franco

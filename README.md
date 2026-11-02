@@ -67,3 +67,4 @@ community no longer cares for. See the paper, Table 1, for ranges and sources.
 ## Licence and citation
 
 MIT licence. Please cite the article (see `CITATION.cff`).
+Software archive: https://doi.org/10.5281/zenodo.23890631
