@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soilloop Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Narrow:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field notebook for one territory. Controls on the left like a soil
+   description sheet, the system's response on the right. Palette from soil
+   horizons: humus, ochre (Bw), gley grey-green, iron mottles. */
+:root{
+  --bg:#e4e2da; --panel:#efede6; --ink:#211d17; --muted:#5d574b; --line:#c9c4b6;
+  --humus:#3b2e22; --ochre:#9a6a12; --gley:#3f6a62; --iron:#9b3b24; --sky:#2f5d86;
+  --trap:#9b3b24; --bist:#9a6a12; --healthy:#3f6a62;
+  --f-display:"Archivo Narrow","Arial Narrow",Arial,sans-serif;
+  --f-body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1b1915; --panel:#24211b; --ink:#ece6da; --muted:#a9a190; --line:#3d382e;
+  --humus:#d9c7a3; --ochre:#d9a441; --gley:#7fb3a8; --iron:#e0775a; --sky:#7fb0dc;
+  --trap:#e0775a; --bist:#d9a441; --healthy:#7fb3a8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1b1915; --panel:#24211b; --ink:#ece6da; --muted:#a9a190; --line:#3d382e;
+  --humus:#d9c7a3; --ochre:#d9a441; --gley:#7fb3a8; --iron:#e0775a; --sky:#7fb0dc;
+  --trap:#e0775a; --bist:#d9a441; --healthy:#7fb3a8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;border-bottom:2px solid var(--humus);padding-bottom:12px}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(28px,4vw,40px);letter-spacing:.01em;margin:0;line-height:1.05;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:62ch}
+nav{display:flex;gap:4px}
+nav button{font:600 13px var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--line);padding:8px 14px;border-radius:2px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--humus);color:var(--bg);border-color:var(--humus)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+.notice{margin:16px 0 0;padding:10px 14px;border-left:3px solid var(--ochre);background:var(--panel);color:var(--muted);font-size:13.5px;max-width:100ch}
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:24px;margin-top:20px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.sheet{background:var(--panel);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:14px;align-self:start}
+.sheet h2,.out h2{font-family:var(--f-display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.field{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:baseline}
+.field label{font-size:13.5px}
+.field output{font-family:var(--f-mono);font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+.field input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--humus)}
+.field .hint{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{font:500 12.5px var(--f-body);border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:5px 9px;border-radius:2px;cursor:pointer}
+.presets button.on{border-color:var(--humus);box-shadow:inset 0 0 0 1px var(--humus)}
+hr{border:0;border-top:1px dashed var(--line);margin:2px 0}
+.out{display:flex;flex-direction:column;gap:18px;min-width:0}
+.verdict{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.chip{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--f-body);padding:6px 12px;border-radius:2px;color:var(--bg)}
+.chip.trap{background:var(--trap)}.chip.bist{background:var(--bist)}.chip.healthy{background:var(--healthy)}
+.kv{display:flex;flex-direction:column}
+.kv b{font-family:var(--f-mono);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}
+.kv span{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.plots{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px}
+@media (max-width:700px){.plots{grid-template-columns:minmax(0,1fr)}}
+figure{margin:0;min-width:0}
+figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
+canvas{width:100%;display:block;background:var(--panel);border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.outcome{font-size:14.5px;max-width:70ch}
+.outcome strong{font-weight:600}
+.tablebox{overflow-x:auto;max-height:340px;overflow-y:auto;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);font-weight:600;font-size:12px;letter-spacing:.04em;color:var(--muted)}
+td.num{font-family:var(--f-mono);font-size:12.5px}
+.tag{font-size:12px;padding:2px 7px;border-radius:2px;color:var(--bg)}
+.tag.low{background:var(--trap)}.tag.high{background:var(--healthy)}.tag.unc{background:var(--muted)}
+select,input[type=file]{font:inherit;font-size:13.5px;max-width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:4px}
+.map{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-items:center;font-size:13.5px}
+.map .dim{grid-column:1/-1;font-weight:600;margin-top:6px}
+.btn{font:600 13px var(--f-body);background:var(--humus);color:var(--bg);border:0;padding:8px 14px;border-radius:2px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);max-width:100ch}
+code{font-family:var(--f-mono);font-size:12.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body style="margin:0">
+
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>Soilloop Explorer</h1>
+    <p class="sub">How contaminated soils, population health and community capacity can lock a territory into decline, and what it takes to get out.</p>
+  </div>
+  <nav role="tablist" aria-label="Sections">
+    <button id="tab-scenarios" role="tab" aria-selected="true" aria-controls="view-scenarios">Scenarios</button>
+    <button id="tab-diagnose" role="tab" aria-selected="false" aria-controls="view-diagnose">Diagnose your data</button>
+  </nav>
+</header>
+<p class="notice">Exploratory tool, version 0.1. The model is conceptual: its social parameters are not calibrated, so results show regimes and orders of magnitude, not the cleanup needed in a specific place. Group labels describe conditions imposed on territories, never the people who live there.</p>
+
+<!-- SCENARIOS -->
+<section id="view-scenarios" role="tabpanel" aria-labelledby="tab-scenarios">
+<div class="grid">
+  <form class="sheet" id="params" onsubmit="return false">
+    <h2>Soil</h2>
+    <div class="presets" id="presets">
+      <button type="button" data-t="400">Long (400 yr)</button>
+      <button type="button" data-t="125" class="on">Intermediate (125 yr)</button>
+      <button type="button" data-t="55">Short (55 yr)</button>
+    </div>
+    <div class="field"><label for="T">Contaminant residence time</label><output id="T_o"></output>
+      <input id="T" type="range" min="1.6" max="3" step="0.01" value="2.097">
+      <span class="hint">Years for the exposed layers to clear by leaching, burial and dilution. It depends on the element and on the soil: lead in organic horizons about 250 yr; cadmium about 170 yr in average EU cropland topsoils, decades in strongly leached soils.</span></div>
+    <div class="field"><label for="p">Pressure on uncared land</label><output id="p_o"></output>
+      <input id="p" type="range" min="0.005" max="0.15" step="0.001" value="0.03">
+      <span class="hint">Rate of new contamination where the community no longer cares for the land: dumping, burning.</span></div>
+    <hr>
+    <h2>People and community</h2>
+    <div class="field"><label for="TH">Health response time</label><output id="TH_o"></output>
+      <input id="TH" type="range" min="2" max="25" step="0.5" value="14"></div>
+    <div class="field"><label for="TC">Community recovery time</label><output id="TC_o"></output>
+      <input id="TC" type="range" min="5" max="50" step="0.5" value="20"></div>
+    <div class="field"><label for="n">Steepness of the community threshold</label><output id="n_o"></output>
+      <input id="n" type="range" min="2" max="8" step="0.1" value="5">
+      <span class="hint">How abruptly a community gives way once health falls.</span></div>
+    <div class="field"><label for="h">Health level at the threshold</label><output id="h_o"></output>
+      <input id="h" type="range" min="0.3" max="0.6" step="0.01" value="0.45"></div>
+    <hr>
+    <h2>Interventions</h2>
+    <div class="field"><label for="x">Cleanup (share of the soil gap closed)</label><output id="x_o"></output>
+      <input id="x" type="range" min="0" max="1" step="0.01" value="0.4"></div>
+    <div class="field"><label for="u">Land care: pressure reduction</label><output id="u_o"></output>
+      <input id="u" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+    <div class="field"><label for="tau">Land care: duration</label><output id="tau_o"></output>
+      <input id="tau" type="range" min="0" max="100" step="1" value="20"></div>
+  </form>
+
+  <div class="out">
+    <div class="verdict" aria-live="polite">
+      <span id="chip" class="chip"></span>
+      <div class="kv"><b id="eq">–</b><span>SOIL CONDITION AT EQUILIBRIUM</span></div>
+      <div class="kv"><b id="mincl">–</b><span>MINIMUM ONE-OFF CLEANUP</span></div>
+    </div>
+    <p class="outcome" id="outcome"></p>
+    <div class="plots">
+      <figure><canvas id="traj" height="300" role="img" aria-label="Trajectories after the intervention"></canvas>
+        <div class="legend"><span><i style="background:var(--humus)"></i>Soil condition</span><span><i style="background:var(--sky)"></i>Health</span><span><i style="background:var(--gley)"></i>Community</span><span><i style="background:var(--line);height:1px"></i>Threshold</span></div>
+        <figcaption>Starting from the trap, 300 years after the intervention you set. Shaded band: years of land care.</figcaption></figure>
+      <figure><canvas id="bif" height="300" role="img" aria-label="Equilibria against pressure"></canvas>
+        <div class="legend"><span><i style="background:var(--humus)"></i>Stable state</span><span><i style="background:var(--muted);height:1px"></i>Tipping threshold</span><span><i style="background:var(--iron)"></i>Current pressure</span></div>
+        <figcaption>Where the territory sits: equilibria of soil condition as pressure changes.</figcaption></figure>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- DIAGNOSE -->
+<section id="view-diagnose" role="tabpanel" aria-labelledby="tab-diagnose" hidden>
+<div class="grid">
+  <div class="sheet">
+    <h2>Your data</h2>
+    <p style="margin:0;font-size:13.5px">A CSV with one row per neighbourhood or municipality and at least one indicator for soil, health and community condition. The sample loaded below is invented, generated from the model.</p>
+    <input id="file" type="file" accept=".csv,text/csv" aria-label="Upload a CSV file">
+    <div class="row"><button class="btn ghost" id="loadSample" type="button">Reload sample</button><span id="fname" style="font-size:12.5px;color:var(--muted)"></span></div>
+    <hr>
+    <div class="map" id="map"></div>
+    <button class="btn" id="run" type="button">Run diagnosis</button>
+  </div>
+  <div class="out">
+    <div class="verdict" aria-live="polite">
+      <span id="dchip" class="chip"></span>
+      <div class="kv"><b id="dbic">–</b><span>ΔBIC, TWO GROUPS VS ONE</span></div>
+      <div class="kv"><b id="dn">–</b><span>UNITS</span></div>
+    </div>
+    <p class="outcome" id="doutcome"></p>
+    <figure><canvas id="scatter" height="340" role="img" aria-label="Units by soil score and social score"></canvas>
+      <div class="legend"><span><i style="background:var(--trap);height:8px;width:8px;border-radius:50%"></i>Low-condition group</span><span><i style="background:var(--healthy);height:8px;width:8px;border-radius:50%"></i>High-condition group</span><span><i style="background:var(--muted);height:8px;width:8px;border-radius:50%"></i>Uncertain</span></div>
+      <figcaption>Each point is a unit. Scores run from 0 (worst observed) to 1 (best observed).</figcaption></figure>
+    <div class="row"><h2 style="margin-right:auto">Units</h2><button class="btn ghost" id="copy" type="button">Copy results as CSV</button><span id="copied" style="font-size:12.5px;color:var(--muted)"></span></div>
+    <div class="tablebox"><table id="tbl"></table></div>
+  </div>
+</div>
+</section>
+
+<footer>
+Model: dS/dt = r(1 − S) − p(1 − C)S; dH/dt = k(S − H); dC/dt = d[Hⁿ/(hⁿ + Hⁿ) − C]. r = 1/residence time, k = 1/health response time, d = 1/community recovery time. The diagnosis compares one- and two-group Gaussian mixtures (diagonal covariance) on the three scores by BIC; a ΔBIC above 10 favours two groups. A two-group pattern is consistent with the loop but does not prove it. Python package with the full analyses: <code>soilloop</code> 0.1, MIT licence. Accompanies Capra, G.F., <em>Breaking the loop: a dynamical model of contaminated soils, human health and community decline in marginal areas</em> (in preparation).
+</footer>
+</div>
+
+<script>
+const SAMPLE=`unit,soil_Pb_mg_kg,premature_mortality_per_1000,deprivation_index
+M000,119.8,2.6,-2.26
+M001,675.7,7.54,0.78
+M002,106.2,1.99,-1.86
+M003,129.0,1.91,-1.48
+M004,733.8,7.48,1.31
+M005,134.1,2.35,-2.5
+M006,204.7,4.02,-1.8
+M007,173.5,2.75,-1.61
+M008,722.9,7.72,2.19
+M009,689.3,8.3,1.0
+M010,637.3,7.72,0.7
+M011,253.8,4.19,-1.17
+M012,147.5,2.17,-1.75
+M013,281.6,4.39,-1.66
+M014,616.3,7.74,1.6
+M015,586.0,8.26,1.51
+M016,571.7,7.71,1.45
+M017,749.4,7.26,1.38
+M018,282.5,3.71,-1.43
+M019,696.9,8.47,1.39
+M020,143.7,3.86,-1.71
+M021,557.3,7.97,1.56
+M022,185.4,4.42,-1.78
+M023,120.1,3.54,-1.95
+M024,243.6,3.94,-1.9
+M025,669.4,8.17,0.94
+M026,69.3,3.57,-2.04
+M027,853.2,9.28,1.0
+M028,610.0,7.05,1.18
+M029,125.8,2.47,-2.21
+M030,64.9,3.27,-1.77
+M031,198.7,3.29,-2.06
+M032,727.1,7.02,1.04
+M033,713.9,7.65,1.02
+M034,674.2,8.17,1.99
+M035,914.3,8.11,1.59
+M036,676.1,7.87,1.34
+M037,144.3,2.42,-1.75
+M038,637.5,7.16,0.41
+M039,95.5,2.19,-1.87
+M040,660.6,8.97,1.65
+M041,123.6,3.3,-1.85
+M042,649.8,8.74,1.84
+M043,735.0,7.7,1.5
+M044,163.9,2.9,-1.67
+M045,207.0,3.37,-2.31
+M046,831.8,6.45,1.14
+M047,785.3,6.79,1.28
+M048,228.2,2.23,-2.01
+M049,800.0,6.97,2.02
+M050,840.7,7.12,1.17
+M051,585.9,9.18,1.1
+M052,237.6,3.83,-2.09
+M053,655.7,8.98,0.73
+M054,108.3,3.06,-2.06
+M055,187.5,4.08,-1.93
+M056,669.7,7.26,1.09
+M057,327.7,4.21,-1.34
+M058,708.1,8.59,1.81
+M059,772.1,7.89,1.73
+M060,159.4,3.65,-2.49
+M061,740.9,8.53,1.67
+M062,695.6,7.59,1.61
+M063,151.4,2.36,-1.78
+M064,333.5,3.48,-1.36
+M065,879.0,7.98,1.07
+M066,238.5,3.87,-1.0
+M067,797.2,7.77,1.3
+M068,613.0,8.17,1.57
+M069,667.1,8.21,0.88
+M070,861.5,8.65,1.39
+M071,723.0,8.28,1.06
+M072,167.5,4.03,-1.95
+M073,805.9,7.54,1.93
+M074,740.6,8.99,1.31
+M075,831.5,7.56,1.37
+M076,736.9,8.62,2.0
+M077,271.0,4.31,-1.76
+M078,746.9,7.86,1.17
+M079,69.9,1.55,-2.19
+M080,686.9,7.53,1.39
+M081,431.3,7.13,1.6
+M082,543.2,8.45,0.98
+M083,780.1,9.14,1.38
+M084,790.2,7.81,1.26
+M085,585.7,8.08,1.12
+M086,621.6,7.42,0.93
+M087,820.8,7.41,0.94
+M088,648.8,8.28,0.9
+M089,292.8,3.69,-1.6
+M090,702.7,9.04,1.65
+M091,221.3,3.36,-1.76
+M092,818.6,8.08,0.72
+M093,723.9,8.07,1.52
+M094,556.3,8.11,0.9
+M095,206.8,3.29,-2.04
+M096,698.6,7.96,1.22
+M097,512.9,7.22,0.42
+M098,633.5,7.12,0.72
+M099,133.4,3.44,-1.84
+M100,782.8,8.29,1.66
+M101,176.9,3.69,-2.21
+M102,619.1,8.3,0.71
+M103,126.8,3.74,-1.86
+M104,131.0,2.67,-1.88
+M105,257.0,3.97,-1.63
+M106,612.3,7.64,1.0
+M107,592.1,7.93,1.03
+M108,828.5,7.7,1.4
+M109,221.8,4.79,-1.54
+M110,73.5,2.53,-2.46
+M111,696.1,7.41,0.93
+M112,757.1,8.82,1.89
+M113,244.6,3.06,-1.68
+M114,710.8,6.77,1.73
+M115,210.4,3.91,-2.02
+M116,260.5,4.11,-1.72
+M117,763.0,8.1,1.01
+M118,586.8,7.08,0.46
+M119,184.1,3.27,-1.68
+M120,666.6,9.11,0.94
+M121,107.3,3.3,-1.95
+M122,787.1,8.02,0.99
+M123,890.6,7.92,1.23
+M124,895.7,7.6,1.08
+M125,851.0,6.84,1.22
+M126,698.7,8.06,1.35
+M127,711.8,8.26,1.3
+M128,826.4,7.48,1.59
+M129,172.5,2.81,-1.76
+M130,735.1,7.53,2.31
+M131,225.1,2.98,-2.15
+M132,720.3,8.25,1.61
+M133,633.1,6.86,1.86
+M134,654.4,8.35,1.93
+M135,778.8,8.46,0.94
+M136,213.6,3.4,-1.78
+M137,746.4,6.57,1.8
+M138,224.5,2.78,-1.55
+M139,676.1,8.97,1.55
+M140,753.6,6.03,1.22
+M141,750.3,7.85,1.33
+M142,145.8,2.39,-1.75
+M143,891.2,8.47,1.44
+M144,679.0,7.84,1.76
+M145,573.0,8.37,1.7
+M146,604.6,8.36,1.31
+M147,569.2,8.64,1.19
+M148,705.2,7.8,2.18
+M149,708.3,8.42,0.99
+M150,112.1,1.85,-1.76
+M151,262.6,4.56,-2.06
+M152,763.9,7.82,1.9
+M153,741.4,7.7,1.44
+M154,767.7,8.1,1.77
+M155,813.1,7.34,1.91
+M156,525.8,8.03,1.22
+M157,42.6,2.72,-1.53
+M158,156.2,3.62,-2.47
+M159,72.3,1.48,-1.48
+M160,703.7,7.91,1.49
+M161,113.4,3.05,-1.54
+M162,807.4,6.55,0.83
+M163,729.5,7.46,1.35
+M164,160.3,3.89,-1.68
+M165,733.0,7.98,1.35
+M166,613.0,7.89,1.26
+M167,682.0,8.9,1.75
+M168,880.6,8.69,1.18
+M169,138.2,3.4,-1.51
+M170,849.9,10.08,1.64
+M171,805.6,8.09,1.56
+M172,611.3,7.52,0.88
+M173,118.3,2.94,-1.66
+M174,766.9,8.13,0.53
+M175,739.8,7.75,1.58
+M176,632.1,7.39,1.32
+M177,237.0,5.55,-1.75
+M178,224.2,4.14,-1.66
+M179,209.2,3.03,-1.34
+M180,108.3,3.35,-1.86
+M181,261.5,3.85,-2.02
+M182,604.0,8.01,1.18
+M183,687.1,8.29,1.67
+M184,160.6,2.28,-1.77
+M185,963.8,8.06,1.1
+M186,581.5,9.13,1.34
+M187,867.2,8.32,1.11
+M188,120.8,2.54,-1.79
+M189,787.9,7.96,1.14
+M190,209.6,3.24,-1.48
+M191,731.6,7.81,1.57
+M192,639.7,7.3,1.74
+M193,190.1,3.55,-2.15
+M194,642.8,6.74,1.42
+M195,826.2,8.43,2.0
+M196,643.0,7.75,1.88
+M197,704.4,8.33,1.19
+M198,635.0,7.63,2.01
+M199,808.8,9.27,1.69
+M200,105.9,3.41,-1.7
+M201,163.8,3.79,-1.98
+M202,80.6,1.64,-2.0
+M203,568.5,8.18,0.55
+M204,685.8,8.23,1.39
+M205,550.6,6.92,1.28
+M206,593.8,7.69,0.95
+M207,736.1,8.17,0.95
+M208,839.0,8.14,1.38
+M209,319.7,3.62,-1.51
+M210,663.5,8.22,1.61
+M211,821.4,8.66,1.37
+M212,781.3,9.11,1.24
+M213,261.5,2.38,-2.02
+M214,784.0,7.99,1.36
+M215,273.4,3.89,-1.34
+M216,698.1,6.83,1.28
+M217,634.4,7.86,1.7
+M218,99.7,3.55,-1.99
+M219,576.7,7.4,1.55
+M220,738.9,7.95,1.13
+M221,632.6,6.95,1.24
+M222,647.9,7.53,1.25
+M223,106.2,3.6,-2.32
+M224,804.3,7.73,0.93
+M225,229.9,4.01,-1.96
+M226,648.1,6.96,1.14
+M227,852.9,9.11,1.4
+M228,56.8,2.59,-1.89
+M229,765.3,7.98,2.2
+M230,787.4,8.2,0.86
+M231,816.6,6.98,1.32
+M232,290.4,4.5,-1.92
+M233,179.3,2.87,-1.87
+M234,200.5,3.31,-1.75
+M235,158.8,2.93,-2.65
+M236,237.6,3.73,-1.68
+M237,256.4,4.23,-0.93
+M238,569.0,8.11,1.32
+M239,642.7,8.51,1.43
+M240,839.4,8.01,1.82
+M241,144.3,3.31,-1.73
+M242,842.4,7.6,1.24
+M243,688.7,9.37,0.83
+M244,568.2,6.61,1.16
+M245,166.1,3.97,-1.75
+M246,201.1,4.39,-2.11
+M247,705.7,7.6,1.71
+M248,811.1,9.04,0.89
+M249,701.3,8.76,1.47
+M250,747.1,8.65,1.66
+M251,152.6,3.24,-2.35
+M252,746.3,7.84,1.76
+M253,727.1,8.11,1.12
+M254,653.8,8.42,1.42
+M255,213.1,4.59,-1.2
+M256,144.0,3.01,-1.43
+M257,665.2,7.3,1.37
+M258,930.9,8.59,1.03
+M259,704.3,8.68,1.52
+M260,649.7,8.16,1.3
+M261,96.9,3.4,-1.64
+M262,621.3,7.89,1.63
+M263,662.2,7.34,1.32
+M264,132.3,2.55,-1.82
+M265,883.5,7.32,1.44
+M266,637.4,7.7,0.8
+M267,831.1,7.86,1.64
+M268,701.1,7.49,0.93
+M269,666.6,5.91,1.39
+M270,654.6,6.93,0.75
+M271,713.5,8.79,1.67
+M272,915.5,7.73,1.55
+M273,509.9,8.03,1.45
+M274,150.2,2.63,-1.78
+M275,643.2,8.81,1.07
+M276,680.9,7.79,1.48
+M277,793.9,8.4,1.49
+M278,134.0,4.32,-2.07
+M279,181.3,4.26,-1.85
+M280,787.2,7.53,1.22
+M281,756.4,7.25,1.39
+M282,766.7,8.18,1.56
+M283,829.7,8.32,1.18
+M284,775.3,8.21,1.57
+M285,632.4,7.5,1.09
+M286,749.1,8.58,1.53
+M287,697.4,7.82,1.28
+M288,750.3,9.67,2.11
+M289,923.0,8.41,2.29
+M290,63.2,3.64,-2.05
+M291,611.7,8.49,1.55
+M292,128.8,3.56,-2.08
+M293,676.8,7.62,1.13
+M294,100.3,2.18,-2.13
+M295,161.9,3.81,-2.18
+M296,109.4,3.47,-2.1
+M297,616.3,7.97,1.47
+M298,1013.3,7.25,1.11
+M299,170.1,2.04,-1.53`;
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------------- model ---------------- */
+const hill=(H,n,h)=>{H=Math.min(1,Math.max(0,H));const a=Math.pow(H,n);return a/(Math.pow(h,n)+a)};
+function P(){return{r:1/Math.pow(10,+$('T').value),p:+$('p').value,k:1/+$('TH').value,d:1/+$('TC').value,n:+$('n').value,h:+$('h').value}}
+function deriv(y,q,p){const[S,H,C]=y;return[q.r*(1-S)-p*(1-C)*S,q.k*(S-H),q.d*(hill(H,q.n,q.h)-C)]}
+function step(y,q,p,dt){const a=deriv(y,q,p),b=deriv(y.map((v,i)=>v+dt/2*a[i]),q,p),c=deriv(y.map((v,i)=>v+dt/2*b[i]),q,p),e=deriv(y.map((v,i)=>v+dt*c[i]),q,p);return y.map((v,i)=>v+dt/6*(a[i]+2*b[i]+2*c[i]+e[i]))}
+function equilibria(q){const f=S=>q.r*(1-S)-q.p*(1-hill(S,q.n,q.h))*S;const out=[];const N=2000;let s0=1e-6,f0=f(s0);
+  for(let i=1;i<=N;i++){const s1=Math.min(1,i/N+3.14159e-6),f1=f(s1);if(f0*f1<0){let a=s0,b=s1;for(let j=0;j<50;j++){const m=(a+b)/2;(f(a)*f(m)<=0)?b=m:a=m}out.push((a+b)/2)}s0=s1;f0=f1}return out}
+function run(q,y0,years,u,tau,dt,record){let y=y0.slice(),t=0;const rec=record?[[0,...y]]:null;while(t<years-1e-9){const p=q.p*(t<tau?1-u:1);y=step(y,q,p,dt);t+=dt;if(record&&Math.abs(t-Math.round(t))<dt/2)rec.push([t,...y])}return record?rec:y}
+function escapes(q,trap,mid,x,u,tau){const y0=[trap[0]+x*(1-trap[0]),trap[1],trap[2]];const y=run(q,y0,3000,u,tau,1,false);return y[0]>mid}
+function minCleanup(q,trap,mid){if(escapes(q,trap,mid,0,0,0))return 0;if(!escapes(q,trap,mid,1,0,0))return NaN;let a=0,b=1;while(b-a>0.005){const m=(a+b)/2;escapes(q,trap,mid,m,0,0)?b=m:a=m}return b}
+
+/* ---------------- drawing ---------------- */
+function setup(cv){const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1,H=+cv.getAttribute('height');cv.width=r.width*dpr;cv.height=H*dpr;cv.style.height=H+'px';const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);return{c,W:r.width,H}}
+function axes(c,W,H,m,xr,yr,xt,yt,xl,yl){const ink=css('--muted'),line=css('--line');c.font='11px '+css('--f-mono');c.fillStyle=ink;c.strokeStyle=line;c.lineWidth=1;
+  const X=v=>m.l+(v-xr[0])/(xr[1]-xr[0])*(W-m.l-m.r),Y=v=>H-m.b-(v-yr[0])/(yr[1]-yr[0])*(H-m.t-m.b);
+  yt.forEach(v=>{c.globalAlpha=.6;c.beginPath();c.moveTo(m.l,Y(v));c.lineTo(W-m.r,Y(v));c.stroke();c.globalAlpha=1;c.textAlign='right';c.fillText(v,m.l-6,Y(v)+4)});
+  xt.forEach(v=>{c.textAlign='center';c.fillText(v,X(v),H-m.b+15)});
+  c.textAlign='center';c.font='12px '+css('--f-body');c.fillText(xl,(m.l+W-m.r)/2,H-4);c.save();c.translate(12,(m.t+H-m.b)/2);c.rotate(-Math.PI/2);c.fillText(yl,0,0);c.restore();return{X,Y}}
+
+let current={};
+function update(){
+  const q=P();
+  $('T_o').value=Math.round(Math.pow(10,+$('T').value))+' yr';$('p_o').value=q.p.toFixed(3)+' /yr';
+  $('TH_o').value=$('TH').value+' yr';$('TC_o').value=$('TC').value+' yr';$('n_o').value=(+$('n').value).toFixed(1);$('h_o').value=(+$('h').value).toFixed(2);
+  $('x_o').value=Math.round($('x').value*100)+'%';$('u_o').value=Math.round($('u').value*100)+'%';$('tau_o').value=$('tau').value+' yr';
+  const e=equilibria(q);const chip=$('chip');let trap,mid=null;
+  if(e.length===3){chip.className='chip bist';chip.textContent='Two stable states: trap and healthy';trap=e[0];mid=e[1]}
+  else if(e.length&&e[0]<0.5){chip.className='chip trap';chip.textContent='Trap only';trap=e[0]}
+  else{chip.className='chip healthy';chip.textContent='Healthy state only';trap=null}
+  $('eq').textContent=e.length===3?`${e[0].toFixed(2)} / ${e[2].toFixed(2)}`:(e[0]??0).toFixed(2);
+  const x=+$('x').value,u=+$('u').value,tau=+$('tau').value;let txt='';
+  let start;
+  if(e.length===3){const tr=[trap,trap,hill(trap,q.n,q.h)];const mc=minCleanup(q,tr,mid);$('mincl').textContent=isNaN(mc)?'none suffices':Math.round(mc*100)+'%';
+    start=tr;const ok=escapes(q,tr,mid,x,u,tau);const okC=escapes(q,tr,mid,x,0,0),okL=escapes(q,tr,mid,0,u,tau);
+    txt=ok?`<strong>The territory escapes the trap.</strong> `:`<strong>The territory relapses into the trap.</strong> `;
+    txt+=`Cleanup alone at ${Math.round(x*100)}% ${okC?'would succeed':'would fail'}; land care alone ${okL?'would succeed':'would fail'}.`;
+    if(!ok&&isNaN(mc))txt+=' No one-off cleanup is enough here: pressure on the land has to fall, and stay down, for the territory to recover.';
+  }else if(trap!==null){$('mincl').textContent='not possible';start=[trap,trap,hill(trap,q.n,q.h)];
+    txt='<strong>Only the trap is stable at this pressure.</strong> A one-off cleanup cannot hold. Lower the pressure on the land, or shorten the contaminant residence time, to see a way out appear.';
+  }else{$('mincl').textContent='not needed';start=[0.25,0.25,hill(0.25,q.n,q.h)];
+    txt='<strong>No trap at these settings.</strong> A degraded territory recovers by itself, given time. The trajectory starts from a degraded state for comparison.'}
+  $('outcome').innerHTML=txt;
+  const y0=[start[0]+(e.length===3?x*(1-start[0]):0),start[1],start[2]];
+  current={q,e,mid,rec:run(q,y0,300,u,tau,0.5,true),tau:u>0?tau:0};drawTraj();drawBif();
+}
+function drawTraj(){const{c,W,H}=setup($('traj'));const m={l:42,r:12,t:12,b:34};const{X,Y}=axes(c,W,H,m,[0,300],[0,1],[0,50,100,150,200,250,300],[0,0.25,0.5,0.75,1],'Years after intervention','Condition (0–1)');
+  if(current.tau>0){c.fillStyle=css('--ochre');c.globalAlpha=.12;c.fillRect(X(0),m.t,X(Math.min(300,current.tau))-X(0),H-m.t-m.b);c.globalAlpha=1}
+  if(current.mid!=null){c.strokeStyle=css('--muted');c.setLineDash([4,4]);c.beginPath();c.moveTo(X(0),Y(current.mid));c.lineTo(X(300),Y(current.mid));c.stroke();c.setLineDash([])}
+  [['--humus',1],['--sky',2],['--gley',3]].forEach(([col,i])=>{c.strokeStyle=css(col);c.lineWidth=2;c.beginPath();current.rec.forEach((r,j)=>{const px=X(r[0]),py=Y(r[i]);j?c.lineTo(px,py):c.moveTo(px,py)});c.stroke()})}
+function drawBif(){const{c,W,H}=setup($('bif'));const m={l:42,r:12,t:12,b:34};const q=current.q;const{X,Y}=axes(c,W,H,m,[0,0.15],[0,1],[0,0.05,0.1,0.15],[0,0.5,1],'Pressure on uncared land (/yr)','Soil condition');
+  for(let p=0.002;p<=0.15;p+=0.0015){const e=equilibria({...q,p});e.forEach((s,i)=>{c.fillStyle=(e.length===3&&i===1)?css('--muted'):css('--humus');c.beginPath();c.arc(X(p),Y(s),(e.length===3&&i===1)?1.2:1.8,0,6.3);c.fill()})}
+  c.strokeStyle=css('--iron');c.lineWidth=2;c.beginPath();c.moveTo(X(q.p),m.t);c.lineTo(X(q.p),H-m.b);c.stroke()}
+
+/* ---------------- diagnosis ---------------- */
+let data=null,cols=[],result=null;
+function parseCSV(t){const L=t.trim().split(/\r?\n/);const sep=(L[0].split(';').length>L[0].split(',').length)?';':',';const hd=L[0].split(sep).map(s=>s.trim().replace(/^"|"$/g,''));
+  return{hd,rows:L.slice(1).map(l=>l.split(sep).map(s=>s.trim().replace(/^"|"$/g,'')))}}
+const guess=(h,words)=>words.some(w=>h.toLowerCase().includes(w));
+function loadText(t,name){data=parseCSV(t);cols=data.hd;$('fname').textContent=name+' · '+data.rows.length+' rows';
+  const numeric=cols.filter((c,i)=>data.rows.filter(r=>r[i]!==''&&!isNaN(+r[i])).length>data.rows.length*0.8);
+  const opt=sel=>numeric.map(c=>`<option ${c===sel?'selected':''}>${c}</option>`).join('');
+  const pick=(w)=>numeric.find(c=>guess(c,w))||numeric[0];
+  const dims=[['soil','Soil indicator',['soil','pb','lead','cd','metal','contam']],['health','Health indicator',['mort','health','disease','life','ill']],['comm','Community indicator',['depriv','social','income','crime','community','cohes']]];
+  $('map').innerHTML=dims.map(([k,lab,w])=>`<span class="dim">${lab}</span><select id="c_${k}" aria-label="${lab}">${opt(pick(w))}</select><label style="font-size:12.5px"><input type="checkbox" id="w_${k}" checked> higher is worse</label>`).join('');
+  runDiag()}
+function scoreCol(v,worse){const s=[...v].filter(x=>!isNaN(x)).sort((a,b)=>a-b);const q=f=>s[Math.min(s.length-1,Math.max(0,Math.round(f*(s.length-1))))];const lo=q(0.02),hi=q(0.98);
+  return v.map(x=>{let z=Math.min(1,Math.max(0,(x-lo)/((hi-lo)||1)));return worse?1-z:z})}
+function gmm(X,K,seed){const n=X.length,d=X[0].length;let rnd=seed;const rand=()=>{rnd=(rnd*16807)%2147483647;return rnd/2147483647};
+  let best=null;for(let init=0;init<10;init++){
+  let mu=[...Array(K)].map(()=>X[Math.floor(rand()*n)].slice()),va=[...Array(K)].map(()=>Array(d).fill(0.05)),pi=Array(K).fill(1/K),ll=-Infinity,R;
+  for(let it=0;it<300;it++){R=X.map(x=>{const l=mu.map((m,k)=>Math.log(pi[k])+m.reduce((s,mj,j)=>s-0.5*Math.log(2*Math.PI*va[k][j])-(x[j]-mj)**2/(2*va[k][j]),0));const mx=Math.max(...l);const e=l.map(v=>Math.exp(v-mx));const z=e.reduce((a,b)=>a+b);return{r:e.map(v=>v/z),ll:mx+Math.log(z)}});
+    const nll=R.reduce((s,o)=>s+o.ll,0);
+    for(let k=0;k<K;k++){const nk=R.reduce((s,o)=>s+o.r[k],0)+1e-9;pi[k]=nk/n;mu[k]=[...Array(d)].map((_,j)=>R.reduce((s,o,i)=>s+o.r[k]*X[i][j],0)/nk);va[k]=[...Array(d)].map((_,j)=>Math.max(1e-4,R.reduce((s,o,i)=>s+o.r[k]*(X[i][j]-mu[k][j])**2,0)/nk))}
+    if(Math.abs(nll-ll)<1e-6)break;ll=nll}
+  const np=K*2*d+(K-1);const bic=-2*ll+np*Math.log(n);if(!best||bic<best.bic)best={bic,mu,pi,R:R.map(o=>o.r)}}return best}
+function runDiag(){if(!data)return;const get=k=>{const i=cols.indexOf($('c_'+k).value);return data.rows.map(r=>+r[i])};
+  const S=scoreCol(get('soil'),$('w_soil').checked),Hs=scoreCol(get('health'),$('w_health').checked),Cs=scoreCol(get('comm'),$('w_comm').checked);
+  const ok=S.map((_,i)=>![S[i],Hs[i],Cs[i]].some(isNaN));const X=[],idx=[];S.forEach((_,i)=>{if(ok[i]){X.push([S[i],Hs[i],Cs[i]]);idx.push(i)}});
+  if(X.length<20){$('doutcome').textContent='At least 20 complete rows are needed.';return}
+  const g1=gmm(X,1,7),g2=gmm(X,2,7);const dB=g1.bic-g2.bic;const low=g2.mu[0].reduce((a,b)=>a+b)<g2.mu[1].reduce((a,b)=>a+b)?0:1;
+  const labels=g2.R.map(r=>r[low]>=0.8?'low':r[low]<=0.2?'high':'unc');
+  result={X,idx,labels,dB,g2,low};
+  $('dbic').textContent=dB.toFixed(0);$('dn').textContent=X.length;
+  const two=dB>10;$('dchip').className='chip '+(two?'bist':'healthy');$('dchip').textContent=two?'Two groups: consistent with the loop':'One group: no sign of the loop';
+  const cnt=k=>labels.filter(l=>l===k).length;const ml=g2.mu[low].map(v=>v.toFixed(2)),mh=g2.mu[1-low].map(v=>v.toFixed(2));
+  $('doutcome').innerHTML=two?`<strong>The units split into two groups.</strong> ${cnt('low')} sit in a low-condition group (mean soil, health, community scores ${ml.join(', ')}), ${cnt('high')} in a high-condition group (${mh.join(', ')}), ${cnt('unc')} are uncertain. This is the pattern alternative stable states would leave. It does not prove the loop: check whether the groups also differ in history, and whether soil and social change follow each other over time.`
+    :`<strong>The data are better described by a single group.</strong> This does not rule out the loop, but there is no sign here of territories clustering into two states.`;
+  drawScatter();
+  $('tbl').innerHTML='<tr><th>Unit</th><th>Soil score</th><th>Health score</th><th>Community score</th><th>Group</th></tr>'+X.map((x,j)=>`<tr><td>${data.rows[idx[j]][0]}</td><td class="num">${x[0].toFixed(2)}</td><td class="num">${x[1].toFixed(2)}</td><td class="num">${x[2].toFixed(2)}</td><td><span class="tag ${labels[j]}">${{low:'low condition',high:'high condition',unc:'uncertain'}[labels[j]]}</span></td></tr>`).join('')}
+function drawScatter(){if(!result)return;const{c,W,H}=setup($('scatter'));const m={l:42,r:12,t:12,b:34};const{X,Y}=axes(c,W,H,m,[0,1],[0,1],[0,0.25,0.5,0.75,1],[0,0.25,0.5,0.75,1],'Soil score','Social score (mean of health and community)');
+  result.X.forEach((x,j)=>{c.fillStyle=css({low:'--trap',high:'--healthy',unc:'--muted'}[result.labels[j]]);c.globalAlpha=.8;c.beginPath();c.arc(X(x[0]),Y((x[1]+x[2])/2),4,0,6.3);c.fill();c.globalAlpha=1;c.strokeStyle=css('--panel');c.lineWidth=1;c.stroke()})}
+$('copy').onclick=async()=>{if(!result)return;const t='unit,soil_score,health_score,community_score,group\n'+result.X.map((x,j)=>[data.rows[result.idx[j]][0],...x.map(v=>v.toFixed(3)),result.labels[j]].join(',')).join('\n');
+  try{await navigator.clipboard.writeText(t);$('copied').textContent='Copied'}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();$('copied').textContent='Press Ctrl+C to copy'}};
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>loadText(r.result,f.name);r.readAsText(f)};
+$('loadSample').onclick=()=>loadText(SAMPLE,'sample (invented)');
+$('run').onclick=runDiag;
+
+/* ---------------- wiring ---------------- */
+let pend=null;const sched=()=>{cancelAnimationFrame(pend);pend=requestAnimationFrame(update)};
+document.querySelectorAll('#params input').forEach(i=>i.addEventListener('input',()=>{if(i.id==='T')document.querySelectorAll('#presets button').forEach(b=>b.classList.remove('on'));sched()}));
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>{$('T').value=Math.log10(+b.dataset.t);document.querySelectorAll('#presets button').forEach(x=>x.classList.toggle('on',x===b));sched()});
+function show(v){const s=v==='diagnose';$('view-scenarios').hidden=s;$('view-diagnose').hidden=!s;$('tab-scenarios').setAttribute('aria-selected',!s);$('tab-diagnose').setAttribute('aria-selected',s);if(s){if(!data)loadText(SAMPLE,'sample (invented)');else drawScatter()}else update()}
+$('tab-scenarios').onclick=()=>{location.hash='scenarios'};$('tab-diagnose').onclick=()=>{location.hash='diagnose'};
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+window.addEventListener('resize',()=>{drawTraj();drawBif();drawScatter()});
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{drawTraj();drawBif();drawScatter()})}catch(e){}
+new MutationObserver(()=>{drawTraj();drawBif();drawScatter()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+show(location.hash.slice(1)||'scenarios');
+</script>
+
+</body>
+</html>
