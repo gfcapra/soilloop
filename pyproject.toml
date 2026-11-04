@@ -10,4 +10,4 @@ readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Gian Franco Capra", email = "gfcapra@uniss.it"}]
 requires-python = ">=3.9"
-dependencies = ["numpy", "scipy", "pandas", "scikit-learn"]
+dependencies = ["numpy", "scipy", "pandas", "scikit-learn", "diptest"]

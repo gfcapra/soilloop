@@ -1,0 +1,42 @@
+{
+ "unimodal skewed (beta copula), n=300": {
+  "bic_only": 0.75,
+  "bic_and_D": 0.475,
+  "bic_D_dip": 0.0
+ },
+ "heavy-tailed unimodal (t, df=3), n=300": {
+  "bic_only": 0.99,
+  "bic_and_D": 0.0,
+  "bic_D_dip": 0.0
+ },
+ "continuous spatial gradient, n=300": {
+  "bic_only": 0.025,
+  "bic_and_D": 0.025,
+  "bic_D_dip": 0.01
+ },
+ "common driver, moderate effect, n=300": {
+  "bic_only": 0.14,
+  "bic_and_D": 0.14,
+  "bic_D_dip": 0.02
+ },
+ "common driver, steep effect, n=300": {
+  "bic_only": 1.0,
+  "bic_and_D": 1.0,
+  "bic_D_dip": 1.0
+ },
+ "loop model, n=50": {
+  "bic_only": 1.0,
+  "bic_and_D": 1.0,
+  "bic_D_dip": 0.98
+ },
+ "loop model, n=100": {
+  "bic_only": 1.0,
+  "bic_and_D": 1.0,
+  "bic_D_dip": 1.0
+ },
+ "loop model, n=300": {
+  "bic_only": 1.0,
+  "bic_and_D": 1.0,
+  "bic_D_dip": 1.0
+ }
+}

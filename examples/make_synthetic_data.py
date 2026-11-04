@@ -5,7 +5,7 @@ from soilloop import Params, simulate_shocks
 
 rng = np.random.default_rng(42)
 n = 300
-P = Params(r=0.02, p=0.07, k=0.5, d=0.1, n=4, h=0.4)
+P = Params(r=0.02, p=0.07, k=0.07, d=0.1, n=4, h=0.4)
 S, H, C = simulate_shocks(P, rng.random(n), rng.random(n), rng.random(n), years=600, sigma=0.01, seed=1)
 df = pd.DataFrame({
     "unit": [f"M{i:03d}" for i in range(n)],

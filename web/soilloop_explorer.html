@@ -161,7 +161,7 @@ code{font-family:var(--f-mono);font-size:12.5px}
 <div class="grid">
   <div class="sheet">
     <h2>Your data</h2>
-    <p style="margin:0;font-size:13.5px">A CSV with one row per neighbourhood or municipality and at least one indicator for soil, health and community condition. The sample loaded below is invented, generated from the model.</p>
+    <p style="margin:0;font-size:13.5px">A CSV with one row per neighborhood or municipality and at least one indicator for soil, health and community condition. The sample loaded below is invented, generated from the model.</p>
     <input id="file" type="file" accept=".csv,text/csv" aria-label="Upload a CSV file">
     <div class="row"><button class="btn ghost" id="loadSample" type="button">Reload sample</button><span id="fname" style="font-size:12.5px;color:var(--muted)"></span></div>
     <hr>
@@ -185,7 +185,7 @@ code{font-family:var(--f-mono);font-size:12.5px}
 </section>
 
 <footer>
-Model: dS/dt = r(1 − S) − p(1 − C)S; dH/dt = k(S − H); dC/dt = d[Hⁿ/(hⁿ + Hⁿ) − C]. r = 1/residence time, k = 1/health response time, d = 1/community recovery time. The diagnosis compares one- and two-group Gaussian mixtures (diagonal covariance) on the three scores by BIC; a ΔBIC above 10 favours two groups. A two-group pattern is consistent with the loop but does not prove it. Python package with the full analyses: <code>soilloop</code> 0.1, MIT licence. Accompanies Capra, G.F., <em>Breaking the loop: a dynamical model of contaminated soils, human health and community decline in marginal areas</em> (in preparation).
+Model: dS/dt = r(1 − S) − p(1 − C)S; dH/dt = k(S − H); dC/dt = d[Hⁿ/(hⁿ + Hⁿ) − C]. r = 1/residence time, k = 1/health response time, d = 1/community recovery time. The diagnosis compares one- and two-group Gaussian mixtures (diagonal covariance) on the three scores by BIC; a ΔBIC above 10 favours two groups. A two-group pattern is consistent with the loop but does not prove it. Python package with the full analyses: <code>soilloop</code> 0.1, MIT license. Accompanies Capra, G.F., <em>Breaking the loop: a dynamical model of contaminated soils, human health and community decline in marginal areas</em> (in preparation).
 </footer>
 </div>
 
@@ -502,7 +502,7 @@ function step(y,q,p,dt){const a=deriv(y,q,p),b=deriv(y.map((v,i)=>v+dt/2*a[i]),q
 function equilibria(q){const f=S=>q.r*(1-S)-q.p*(1-hill(S,q.n,q.h))*S;const out=[];const N=2000;let s0=1e-6,f0=f(s0);
   for(let i=1;i<=N;i++){const s1=Math.min(1,i/N+3.14159e-6),f1=f(s1);if(f0*f1<0){let a=s0,b=s1;for(let j=0;j<50;j++){const m=(a+b)/2;(f(a)*f(m)<=0)?b=m:a=m}out.push((a+b)/2)}s0=s1;f0=f1}return out}
 function run(q,y0,years,u,tau,dt,record){let y=y0.slice(),t=0;const rec=record?[[0,...y]]:null;while(t<years-1e-9){const p=q.p*(t<tau?1-u:1);y=step(y,q,p,dt);t+=dt;if(record&&Math.abs(t-Math.round(t))<dt/2)rec.push([t,...y])}return record?rec:y}
-function escapes(q,trap,mid,x,u,tau){const y0=[trap[0]+x*(1-trap[0]),trap[1],trap[2]];const y=run(q,y0,3000,u,tau,1,false);return y[0]>mid}
+function escapes(q,trap,mid,x,u,tau){const y0=[trap[0]+x*(1-trap[0]),trap[1],trap[2]];const y=run(q,y0,3000,u,tau,1,false);const e=equilibria(q);return Math.abs(y[0]-e[e.length-1])<Math.abs(y[0]-e[0])}
 function minCleanup(q,trap,mid){if(escapes(q,trap,mid,0,0,0))return 0;if(!escapes(q,trap,mid,1,0,0))return NaN;let a=0,b=1;while(b-a>0.005){const m=(a+b)/2;escapes(q,trap,mid,m,0,0)?b=m:a=m}return b}
 
 /* ---------------- drawing ---------------- */
