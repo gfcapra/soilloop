@@ -4,7 +4,7 @@ A dynamical model and screening diagnostics for the loop between contaminated so
 human health and community capacity in marginal areas.
 
 Accompanies: Capra, G.F. *Breaking the loop: a dynamical model of contaminated soils,
-human health and community decline in marginal areas* (in preparation).
+human health and community decline in marginal areas* (submitted to *Soil & Environmental Health*).
 
 ## What it does
 
